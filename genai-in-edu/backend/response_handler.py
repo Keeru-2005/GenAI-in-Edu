@@ -2,7 +2,8 @@ import fitz  # PyMuPDF
 from groq import Groq
 
 # Initialize Groq client
-client = Groq(api_key="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")
+GROQ_API = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=GROQ_API)
 
 # --- PDF Text Extraction ---
 def extract_text_from_pdf(file_bytes):

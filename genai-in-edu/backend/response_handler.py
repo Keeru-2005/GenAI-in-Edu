@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 from groq import Groq
+import os
 
 # Initialize Groq client
 GROQ_API = os.getenv("GROQ_API_KEY")

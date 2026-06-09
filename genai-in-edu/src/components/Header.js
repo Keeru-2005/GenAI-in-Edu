@@ -33,7 +33,15 @@ function Header() {
   const handleLogout = () => {
     alert("Logged out (placeholder)");
   };
-  const { activeUser, setActiveUser, users } = useContext(UserContext);
+  const { activeUser, setActiveUser, users, createNewProfile } = useContext(UserContext);
+
+  const handleCreateProfile = () => {
+    const name = window.prompt("Enter new username:");
+    if (name && name.trim() !== "") {
+      createNewProfile(name.trim());
+    }
+    handleMenuClose();
+  };
 
 
   return (
@@ -95,6 +103,10 @@ function Header() {
               </MenuItem>
             ))}
 
+          <MenuItem onClick={handleCreateProfile} aria-label="Create Profile" sx={{ borderBottom: "1px solid rgba(255,255,255,0.1)", mb: 1, pb: 1, fontWeight: "bold" }}>
+            + Create Profile
+          </MenuItem>
+          
           <MenuItem
             onClick={() => {
               window.location.href = "/settings";

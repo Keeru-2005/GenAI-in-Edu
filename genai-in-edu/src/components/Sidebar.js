@@ -1,5 +1,5 @@
 // File: src/components/Sidebar.js
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import {
   Box,
   Drawer,
@@ -18,24 +18,18 @@ import {
   Button,
   Card,
   CardContent,
-  Collapse,
   Tooltip,
 } from "@mui/material";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
 import InfoIcon from "@mui/icons-material/Info";
 import { AppContext } from "../../src/App";
+import axios from "axios";
+import { UserContext } from "../context/UserContext";
+import FocusDashboard from "./modals/FocusDashboard";
+
 
 const drawerWidth = 320;
-
-const disabilityConditions = [
-  { label: "None", value: "none" },
-  { label: "ADHD - Mild", value: "mild" },
-  { label: "ADHD - Moderate", value: "moderate" },
-  { label: "ADHD - Severe", value: "severe" },
-  { label: "Autism", value: "autism" },
-  { label: "Dyslexia", value: "dyslexia" },
-];
 
 export default function Sidebar() {
   const {
@@ -43,57 +37,139 @@ export default function Sidebar() {
     setPreferences,
     disabilities,
     setDisabilities,
-    privacy,
-    setPrivacy,
-    learnerModel,
+    // learnerModel,
   } = useContext(AppContext);
+  const { activeUser } = useContext(UserContext);
+
 
   const [open, setOpen] = useState(true);
+  const [focusDashboardOpen, setFocusDashboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (!activeUser?.user_id) return;
+
+    axios
+      .get(`http://localhost:8000/user-disabilities/${activeUser.user_id}`)
+      .then((res) => {
+        setDisabilities(prev => ({
+          ...prev,
+          ADHD: res.data.ADHD || "none",
+          Autism: res.data.Autism || "none",
+          Dyslexia: res.data.Dyslexia || "none",
+          consent: res.data.consent || false,
+        }));
+      })
+      .catch((err) => {
+        console.error("Failed to fetch disabilities", err);
+      });
+  }, [activeUser.user_id, setDisabilities]);
+
 
   // Handlers for preferences sliders
   const handleGranularityChange = (_, value) =>
     setPreferences((prev) => ({ ...prev, feedbackGranularity: value }));
-  const handleAnxietyChange = (_, value) =>
+  const handleAnxietyChange = (_, value) => {
     setPreferences((prev) => ({ ...prev, anxietyLevel: value }));
-  const handleModalityChange = (event) =>
-    setPreferences((prev) => ({ ...prev, modalityPreference: event.target.value }));
 
-  // Disabilities form handlers
-  function handleDisabilityChange(condition) {
-    setDisabilities((prev) => ({
-      ...prev,
-      [condition]: disabilities[condition] === "none" ? "mild" : "none", // toggling simple yes/no; extend if needed
-    }));
+    axios.post("http://localhost:8000/update-emotional-state", {
+      user_id: activeUser.user_id,
+      anxiety_level: value,
+    });
+  };
+
+  const handleModalityChange = (event) => {
+    setPreferences((prev) => ({ ...prev, modalityPreference: event.target.value }));
+    axios.post("http://localhost:8000/log-modality-event", {
+      user_id: activeUser.user_id,
+      modality: event.target.value,
+      event: event.target.value,
+      duration: 0,
+    });
   }
 
-  const handleDisabilitySelectChange = (event, conditionKey) => {
-    setDisabilities((prev) => ({
+
+  const handleDisabilitySelectChange = async (event, conditionKey) => {
+    const severity = event.target.value;
+
+    // UI update
+    setDisabilities(prev => ({
       ...prev,
-      [conditionKey]: event.target.value,
+      [conditionKey]: severity,
     }));
+
+    if (!disabilities.consent) return;
+    if (!activeUser?.user_id) {
+      console.error("❌ No active user");
+      return;
+    }
+
+    try {
+      await axios.post(
+        "http://localhost:8000/update-disability",
+        {
+          user_id: activeUser.user_id,
+          condition: conditionKey,
+          severity,
+          consent: true,
+          declared_at: new Date().toISOString(),
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      console.log(`✅ Stored ${conditionKey}:${severity}`);
+    } catch (err) {
+      console.error("❌ Backend error:", err.response?.data);
+    }
   };
 
-  const handleConsentChange = (event) => {
-    setDisabilities((prev) => ({
+  const handleConsentChange = async (event) => {
+    const consent = event.target.checked;
+
+    setDisabilities(prev => ({
       ...prev,
-      consent: event.target.checked,
+      consent,
     }));
+
+    if (!consent) return;
+    if (!activeUser?.user_id) return;
+
+    for (const condition of ["ADHD", "Autism", "Dyslexia"]) {
+      const severity = disabilities[condition];
+      if (!severity || severity === "none") continue;
+
+      await axios.post(
+        "http://localhost:8000/update-disability",
+        {
+          user_id: activeUser.user_id,
+          condition,
+          severity,
+          consent: true,
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
   };
+
+
+
+
 
   // Privacy dashboard handlers (placeholders)
   const handleViewMetrics = () => {
-    alert("Showing tracked metrics (placeholder)");
+    setFocusDashboardOpen(true);
   };
-  const handleDeleteData = () => {
-    alert("Data deleted (placeholder)");
+  const handleDeleteData = async () => {
+    if (!activeUser?.user_id) return;
+    if (window.confirm("Are you sure you want to delete all personal data?")) {
+      try {
+        await axios.delete(`http://localhost:8000/delete-user-data/${activeUser.user_id}`);
+        alert("All personal data has been deleted.");
+      } catch (e) {
+        alert("Failed to delete data.");
+        console.error(e);
+      }
+    }
   };
-  const handleEyeTrackingToggle = () => {
-    setPrivacy((prev) => ({
-      ...prev,
-      eyeTrackingConsent: !prev.eyeTrackingConsent,
-    }));
-  };
-
   // Sidebar collapse toggle
   const toggleDrawer = () => {
     setOpen(!open);
@@ -223,19 +299,9 @@ export default function Sidebar() {
                   fullWidth
                 >
                   <MenuItem value="none">None</MenuItem>
-                  {conditionKey === "ADHD" && (
-                    <>
-                      <MenuItem value="mild">Mild</MenuItem>
-                      <MenuItem value="moderate">Moderate</MenuItem>
-                      <MenuItem value="severe">Severe</MenuItem>
-                    </>
-                  )}
-                  {conditionKey !== "ADHD" && (
-                    <>
-                      <MenuItem value="mild">Mild</MenuItem>
-                      <MenuItem value="moderate">Moderate</MenuItem>
-                    </>
-                  )}
+                  <MenuItem value="mild">Mild</MenuItem>
+                  <MenuItem value="moderate">Moderate</MenuItem>
+                  <MenuItem value="severe">Severe</MenuItem>
                 </Select>
               </Box>
             ))}
@@ -277,43 +343,13 @@ export default function Sidebar() {
             >
               Delete My Data
             </Button>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={privacy.eyeTrackingConsent}
-                  onChange={handleEyeTrackingToggle}
-                  inputProps={{ "aria-label": "Eye-tracking consent toggle" }}
-                />
-              }
-              label="Consent for Eye-Tracking via Webcam"
-            />
 
             <Divider sx={{ my: 3 }} />
 
-            {/* Learner Model Summary */}
-            <Typography variant="h6" gutterBottom>
-              Learner Model Summary
-              <Tooltip title="Current inferred habits, focus levels, and progress">
-                <InfoIcon sx={{ ml: 1, verticalAlign: "middle", fontSize: 18 }} />
-              </Tooltip>
-            </Typography>
-
-            <Card elevation={3} tabIndex={0} aria-label="Learner model summary card">
-              <CardContent>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Habits:</strong> {learnerModel.habits}
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Focus Level:</strong> {learnerModel.focusLevel}
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Progress:</strong> {learnerModel.progress}
-                </Typography>
-              </CardContent>
-            </Card>
           </>
         )}
       </Box>
+      <FocusDashboard open={focusDashboardOpen} onClose={() => setFocusDashboardOpen(false)} />
     </Drawer>
   );
 }

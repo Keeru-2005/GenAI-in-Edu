@@ -16,7 +16,7 @@ export default function EmotionalSupportPopup({ open, onClose }) {
       open={open}
       anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       onClose={onClose}
-      autoHideDuration={10000}
+      autoHideDuration={100000}
       aria-live="assertive"
       aria-label="Emotional support suggestion popup"
     >

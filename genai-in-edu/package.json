@@ -1,0 +1,57 @@
+{
+  "name": "genai-in-edu",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.x",
+    "@emotion/styled": "^11.x",
+    "@mui/icons-material": "^5.x",
+    "@mui/material": "^5.x",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "antd": "^5.12.0",
+    "axios": "^1.6.0",
+    "d3": "^7.8.0",
+    "howler": "^2.x",
+    "js-cookie": "^3.0.5",
+    "mermaid": "^10.x",
+    "pdfjs-dist": "^5.4.149",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-markdown": "^8.x",
+    "react-router-dom": "^6.x",
+    "react-scripts": "5.0.1",
+    "recharts": "^3.8.1",
+    "rehype-raw": "^6.x",
+    "remark-gfm": "^3.x",
+    "socket.io-client": "^4.7.0",
+    "web-vitals": "^2.1.4",
+    "webgazer": "^3.5.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

@@ -7,9 +7,18 @@
 
 # testing
 /coverage
-
+/__pycache__
+/backend/__pycache__
+*.pyc
+/backend/generated_videos
+/backend/static
+/backend/temp_video_assets
+/backend/uploads
+/backend/video_engine
+/public
 # production
 /build
+../venv
 
 # misc
 .DS_Store

@@ -1,5 +1,6 @@
 // File: src/components/modals/FocusConsentModal.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AppContext } from "../../App";
 import {
   Dialog,
   DialogTitle,
@@ -17,6 +18,7 @@ import {
  * Permissions for eye-tracking consent.
  */
 export default function FocusConsentModal({ open, onClose }) {
+  const { setPrivacy } = useContext(AppContext);
   const [consent, setConsent] = useState(false);
   const [webcamStream, setWebcamStream] = useState(null);
   const videoRef = React.useRef(null);
@@ -29,9 +31,6 @@ export default function FocusConsentModal({ open, onClose }) {
           .getUserMedia({ video: true })
           .then((stream) => {
             setWebcamStream(stream);
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-            }
           })
           .catch(() => {
             setWebcamStream(null);
@@ -47,9 +46,15 @@ export default function FocusConsentModal({ open, onClose }) {
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (webcamStream && videoRef.current) {
+      videoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream]);
+
   const handleConfirm = () => {
     if (consent) {
-      alert("Eye-tracking consent granted (placeholder)");
+      setPrivacy(prev => ({ ...prev, eyeTrackingConsent: true }));
       onClose();
     } else {
       alert("Please provide consent to enable eye-tracking");
@@ -62,7 +67,10 @@ export default function FocusConsentModal({ open, onClose }) {
       <DialogContent dividers>
         <Typography variant="body1" gutterBottom>
           To estimate your focus level more accurately, we request permission to use your webcam
-          to track eye movements. Your privacy and data security are our utmost priority.
+          to track eye movements. <br /><br />
+          <strong>Privacy Guarantee:</strong> All video processing is done entirely on your device using Edge Computing. 
+          Raw video frames are <strong>never</strong> saved, sent to the cloud, or viewed by anyone. 
+          Only anonymous, aggregated focus percentages are transmitted.
         </Typography>
         <Box
           sx={{

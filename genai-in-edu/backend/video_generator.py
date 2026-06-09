@@ -35,10 +35,6 @@ def parse_video_script(script_text):
         line = line.strip()
         if not line:
             continue
-        
-        # DEBUG: Show what we're processing
-        if line_num < 20:  # Show first 20 lines
-            print(f"  Line {line_num}: {line[:80]}")
             
         # Check for timestamp pattern: Title (MM:SS - MM:SS)
         timestamp_match = re.search(r'^(.*?)\((\d+:\d+)\s*-\s*(\d+:\d+)\)', line)
@@ -46,7 +42,6 @@ def parse_video_script(script_text):
         if timestamp_match:
             # Save previous scene if exists
             if current_scene:
-                print(f"  ✅ Saved scene: {current_scene['title']}")
                 scenes.append(current_scene)
             
             # Start new scene
@@ -54,44 +49,52 @@ def parse_video_script(script_text):
             start = timestamp_match.group(2)
             end = timestamp_match.group(3)
             
-            print(f"  🎬 New scene found: '{title}' ({start} - {end})")
-            
             current_scene = {
                 'title': title,
                 'start': start,
                 'end': end,
                 'narration': '',
                 'visual_desc': '',
+                'image_query': '',
                 'duration': 0
             }
             current_scene['duration'] = (
                 time_to_seconds(current_scene['end']) - 
                 time_to_seconds(current_scene['start'])
             )
+            current_section = None
         
         elif current_scene:
+            # Check for Image Search
+            if line.startswith('Image Search:'):
+                current_scene['image_query'] = line.replace('Image Search:', '').strip()
+                current_section = None
+                
             # Check for Visuals line
-            if line.startswith('(Visuals:') or line.startswith('Visuals:'):
+            elif line.startswith('(Visuals:') or line.startswith('Visuals:'):
                 visual_text = re.sub(r'^\(?\s*Visuals:\s*', '', line)
                 visual_text = visual_text.rstrip(')')
-                current_scene['visual_desc'] += ' ' + visual_text
-                print(f"    📷 Added visual: {visual_text[:60]}...")
-            
+                current_scene['visual_desc'] += visual_text + '\n'
+                current_section = 'visuals'
+                
             # Check for Narration line
-            elif 'Narration:' in line:
+            elif line.startswith('Narration:'):
                 narration_text = re.search(r'Narration:\s*"?(.*?)"?\s*$', line)
                 if narration_text:
-                    current_scene['narration'] += ' ' + narration_text.group(1)
-                    print(f"    🎤 Added narration: {narration_text.group(1)[:60]}...")
-            
-            # If it's a continuation of narration (no label)
-            elif current_scene['narration'] and not line.startswith('('):
-                current_scene['narration'] += ' ' + line.strip('"')
-                print(f"    🎤 Continuation: {line[:60]}...")
+                    current_scene['narration'] += narration_text.group(1) + ' '
+                current_section = 'narration'
+                
+            # Handle continuation lines
+            elif current_section == 'visuals':
+                # Remove markdown bold/italics or list symbols if you want, but appending is fine
+                current_scene['visual_desc'] += line + '\n'
+            elif current_section == 'narration':
+                # Remove quotes for continuation
+                clean_line = line.strip('"')
+                current_scene['narration'] += clean_line + ' '
     
     # Add last scene
     if current_scene:
-        print(f"  ✅ Saved final scene: {current_scene['title']}")
         scenes.append(current_scene)
     
     # Clean up
@@ -158,12 +161,25 @@ def fetch_image_from_pexels(query, index=0):
             
             return img_path
         else:
-            print(f"⚠️  No images found for '{search_query}'")
             return create_gradient_background(index, query)
             
     except Exception as e:
         print(f"❌ Pexels error: {e}")
         return create_gradient_background(index, query)
+
+
+def get_diagram_prompt(modality):
+    if modality == "diagram":
+        return (
+            "Now generate a diagram for the question. Create a visual explanation using Mermaid diagrams. Follow these rules:\n\n"
+            "You MUST generate VALID Mermaid syntax.\n\n"
+            "1. ALWAYS include at least one Mermaid diagram in your response\n"
+            "2. Output Mermaid code ONLY inside a fenced block like:\n```mermaid\ngraph TD\n  A --> B\n```\n"
+            "3. Use ONLY: graph TD, graph LR, sequenceDiagram, classDiagram, mindmap\n"
+            "4. IMPORTANT: You MUST place a newline after the diagram type (e.g., 'graph TD' must be on its own line).\n"
+            "5. IMPORTANT: Do NOT use special characters like parentheses (), brackets [], braces {}, or quotes in node names. Use simple alphanumeric names for nodes.\n"
+            "6. IMPORTANT: Ensure proper spacing and strictly avoid syntax errors.\n"
+        )
 
 
 def create_gradient_background(index, title=""):
@@ -245,8 +261,13 @@ def create_slide_with_text(bg_image_path, title, content, index):
     draw.text((100, title_y), title_wrapped, fill=(255, 255, 255), font=title_font)
     
     # Draw content with better wrapping
-    content_wrapped = textwrap.fill(content, width=55)
-    content_y = 500
+    wrapped_lines = []
+    for line in content.split('\n'):
+        line = line.strip()
+        if line:
+            wrapped_lines.append(textwrap.fill(line, width=55))
+    content_wrapped = '\n'.join(wrapped_lines)
+    content_y = 400
     
     # Shadow
     draw.text((105, content_y + 3), content_wrapped, fill=(0, 0, 0), font=content_font)
@@ -340,13 +361,16 @@ def create_video_from_script(script_text, output_filename="output_video.mp4"):
         print(f"\n--- Scene {i+1}/{len(scenes)}: {scene['title']} ---")
         
         # 1. Get background image
-        bg_image = fetch_image_from_pexels(scene['title'], i)
+        query_to_use = scene.get('image_query') if scene.get('image_query') else scene['title']
+        bg_image = fetch_image_from_pexels(query_to_use, i)
         
         # 2. Create slide
+        # Fallback to narration if visual_desc is empty
+        slide_text = scene['visual_desc'] if scene.get('visual_desc') else scene['narration'][:300]
         slide_path = create_slide_with_text(
             bg_image,
             scene['title'],
-            scene['narration'][:300],  # First 300 chars on slide
+            slide_text,
             i
         )
         

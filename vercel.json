@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd genai-in-edu && npm install && npm run build",
+  "outputDirectory": "genai-in-edu/build",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

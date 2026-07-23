@@ -8,8 +8,10 @@ export const UserProvider = ({ children }) => {
   const [activeUser, setActiveUser] = useState({ user_id: "loading", name: "Loading..." });
   const [users, setUsers] = useState([]);
 
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    axios.get("http://localhost:8000/users")
+    axios.get(`${API_BASE}/users`)
       .then(res => {
         const fetchedUsers = res.data.users || [];
         if (fetchedUsers.length > 0) {
@@ -25,11 +27,11 @@ export const UserProvider = ({ children }) => {
       .catch(err => {
         console.error("Failed to fetch users from DB", err);
       });
-  }, []);
+  }, [API_BASE]);
 
   const createNewProfile = async (username) => {
     try {
-      const res = await axios.post("http://localhost:8000/create-profile", { username });
+      const res = await axios.post(`${API_BASE}/create-profile`, { username });
       const newUser = res.data;
       setUsers(prev => [...prev, newUser]);
       setActiveUser(newUser);

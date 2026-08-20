@@ -21,6 +21,7 @@ import FocusConsentModal from "./components/modals/FocusConsentModal";
 import EmotionalSupportPopup from "./components/EmotionalSupportPopup";
 import ImpatienceModal from "./components/modals/ImpatienceModal";
 import { UserContext } from "./context/UserContext";
+import { API_BASE } from "./apiConfig";
 // Contexts
 export const ColorModeContext = createContext({ toggleColorMode: () => { } });
 export const AppContext = createContext();
@@ -214,7 +215,7 @@ function App() {
       if (!activeUser?.user_id) return;
       setImpatienceModalOpen(true);
       
-      axios.post("http://localhost:8000/log-impatience-event", {
+      axios.post(`${API_BASE}/log-impatience-event`, {
         user_id: activeUser.user_id,
         trigger_type: trigger_type
       }).catch(err => console.error("Impatience logging failed", err));

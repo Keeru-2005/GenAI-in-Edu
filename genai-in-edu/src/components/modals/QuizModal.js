@@ -128,6 +128,7 @@ import {
   Radio
 } from "@mui/material";
 import axios from "axios";
+import { API_BASE } from "../../apiConfig";
 
 export default function QuizModal({ open, onClose, quizData, user_id, topic }) {
   const [answers, setAnswers] = useState([]);
@@ -146,23 +147,27 @@ if (!quizData || quizData.length === 0) {
     const options = quizData.map(q => q.options);
     const questions = quizData.map(q => q.question);
 
-    const res = await axios.post("http://localhost:8000/submit-quiz", {
-      user_id,
-      topic,
-      answers,
-      correct_answers: correct,
-      options,
-      questions
-    });
+    try {
+      const res = await axios.post(`${API_BASE}/submit-quiz`, {
+        user_id: user_id || "user_fallback",
+        topic,
+        answers,
+        correct_answers: correct,
+        options,
+        questions
+      });
 
-    alert(`Score: ${res.data.score * 100}%\n${res.data.feedback}`);
-    // onClose();
+      alert(`Score: ${res.data.score * 100}%\n${res.data.feedback || ""}`);
 
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("quiz-feedback", {
-        detail: res.data
-      }));
-    }, 200);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("quiz-feedback", {
+          detail: res.data
+        }));
+      }, 200);
+    } catch (err) {
+      console.error("Quiz submission error:", err);
+      alert("Failed to submit quiz. Please try again.");
+    }
     onClose();
   };
 

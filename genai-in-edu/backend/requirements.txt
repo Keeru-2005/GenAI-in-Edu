@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi
 uvicorn
 python-multipart
@@ -7,8 +8,7 @@ requests
 groq
 PyMuPDF
 opencv-python-headless
-cmake
-dlib
+dlib-bin
 numpy
 Pillow
 gTTS
@@ -16,7 +16,5 @@ moviepy==1.0.3
 pyttsx3
 neo4j
 faiss-cpu
-sentence-transformers
-transformers
 torch
-accelerate
+sentence-transformers

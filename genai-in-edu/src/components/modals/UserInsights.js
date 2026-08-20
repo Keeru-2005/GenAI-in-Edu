@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
-import { UserContext } from "../context/UserContext";
+import { UserContext } from "../../context/UserContext";
+import { API_BASE } from "../../apiConfig";
 
 export default function UserInsights() {
   const { activeUser } = useContext(UserContext);
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    if (!activeUser?.user_id) return;
     axios
-      .get(`http://localhost:8000/user-insights/${activeUser.user_id}`)
+      .get(`${API_BASE}/user-insights/${activeUser.user_id}`)
       .then((res) => setData(res.data));
-  }, []);
+  }, [activeUser]);
 
   if (!data) return <p>Loading...</p>;
 

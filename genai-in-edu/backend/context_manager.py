@@ -1,8 +1,9 @@
-from transformers import pipeline
+import os
+from groq import Groq
 
-# Load summarization and NER models (can be cached globally)
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-ner = pipeline("ner", grouped_entities=True, model="dslim/bert-base-NER")
+# Initialize Groq client
+GROQ_API = os.getenv("GROQ_API_KEY")
+groq_client = Groq(api_key=GROQ_API) if GROQ_API else None
 
 # In-memory session-level context
 conversation_context = {
@@ -13,20 +14,32 @@ conversation_context = {
 def update_context(user_message, bot_response):
     global conversation_context
 
-    # Step 1: Extract key entities/topics
-    entities = ner(bot_response)
-    new_topics = [e['word'] for e in entities if e['entity_group'] in ['ORG', 'MISC', 'PER', 'LOC']]
-
-    # Step 2: Generate or refine conversation summary
     combined_text = (conversation_context["summary"] + " " + bot_response).strip()
-    if len(combined_text.split()) > 80:  # Summarize if it's getting too long
-        summary = summarizer(combined_text, max_length=60, min_length=30, do_sample=False)[0]['summary_text']
+    
+    if len(combined_text.split()) > 80 and groq_client:
+        try:
+            res = groq_client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a concise conversation summarizer. Summarize the conversation in 1-2 short sentences and list 3 key topics (comma-separated) on a new line starting with 'Topics:'."
+                    },
+                    {"role": "user", "content": combined_text}
+                ],
+                model="llama-3.1-8b-instant",
+                max_tokens=120
+            )
+            content = res.choices[0].message.content.strip()
+            lines = content.split("\n")
+            conversation_context["summary"] = lines[0]
+            for line in lines[1:]:
+                if "topics:" in line.lower():
+                    topics = [t.strip() for t in line.split(":", 1)[1].split(",") if t.strip()]
+                    conversation_context["topics"] = list(set(conversation_context["topics"] + topics))
+        except Exception:
+            conversation_context["summary"] = combined_text[:300]
     else:
-        summary = combined_text
-
-    # Step 3: Update context
-    conversation_context["summary"] = summary
-    conversation_context["topics"] = list(set(conversation_context["topics"] + new_topics))
+        conversation_context["summary"] = combined_text[:300]
 
     return conversation_context
 

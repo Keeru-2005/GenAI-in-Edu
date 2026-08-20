@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
+import { API_BASE } from "../../apiConfig";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { UserContext } from "../../context/UserContext";
 import { Dialog, DialogContent, DialogTitle, IconButton, Typography, Box, Grid, Card, CardContent, Chip } from "@mui/material";
@@ -19,7 +20,7 @@ export default function FocusDashboard({ open, onClose }) {
 
     // Fetch Focus Trend
     axios
-      .get(`http://localhost:8000/focus-trend/${activeUser.user_id}`)
+      .get(`${API_BASE}/focus-trend/${activeUser.user_id}`)
       .then((res) => {
         // Fix: Use res.data.data instead of res.data.scores
         if (res.data && res.data.data) {
@@ -31,7 +32,7 @@ export default function FocusDashboard({ open, onClose }) {
 
     // Fetch User Insights
     axios
-      .get(`http://localhost:8000/user-insights/${activeUser.user_id}`)
+      .get(`${API_BASE}/user-insights/${activeUser.user_id}`)
       .then((res) => {
         setInsights(res.data);
       })

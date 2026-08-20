@@ -411,7 +411,7 @@ def generate_video_task(job_id: str, script: str, user_id: str, intent: str, mod
         output_filename = f"{job_id}.mp4"
         video_path = create_video_from_script(script, output_filename)
         if video_path and os.path.exists(video_path):
-            video_url = f"http://localhost:8000/videos/{output_filename}"
+            video_url = f"/videos/{output_filename}"
             video_jobs[job_id] = {"status": "completed", "video_url": video_url, "script": script}
             log_interaction(user_id=user_id, content_id="video_generation", event_type=intent, modality=modality)
         else:
@@ -431,7 +431,7 @@ def generate_audio(text: str = Form(...)):
         audio_path = f"generated_videos/{audio_id}.mp3"
         tts = gTTS(text=text, lang='en', slow=False)
         tts.save(audio_path)
-        return {"audio_url": f"http://localhost:8000/videos/{audio_id}.mp3"}
+        return {"audio_url": f"/videos/{audio_id}.mp3"}
     except Exception as e:
         return {"error": str(e)}
 

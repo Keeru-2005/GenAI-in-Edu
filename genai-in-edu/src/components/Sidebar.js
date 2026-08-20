@@ -27,6 +27,7 @@ import { AppContext } from "../../src/App";
 import axios from "axios";
 import { UserContext } from "../context/UserContext";
 import FocusDashboard from "./modals/FocusDashboard";
+import { API_BASE } from "../apiConfig";
 
 
 const drawerWidth = 320;
@@ -49,7 +50,7 @@ export default function Sidebar() {
     if (!activeUser?.user_id) return;
 
     axios
-      .get(`http://localhost:8000/user-disabilities/${activeUser.user_id}`)
+      .get(`${API_BASE}/user-disabilities/${activeUser.user_id}`)
       .then((res) => {
         setDisabilities(prev => ({
           ...prev,
@@ -71,7 +72,7 @@ export default function Sidebar() {
   const handleAnxietyChange = (_, value) => {
     setPreferences((prev) => ({ ...prev, anxietyLevel: value }));
 
-    axios.post("http://localhost:8000/update-emotional-state", {
+    axios.post(`${API_BASE}/update-emotional-state`, {
       user_id: activeUser.user_id,
       anxiety_level: value,
     });
@@ -79,7 +80,7 @@ export default function Sidebar() {
 
   const handleModalityChange = (event) => {
     setPreferences((prev) => ({ ...prev, modalityPreference: event.target.value }));
-    axios.post("http://localhost:8000/log-modality-event", {
+    axios.post(`${API_BASE}/log-modality-event`, {
       user_id: activeUser.user_id,
       modality: event.target.value,
       event: event.target.value,
@@ -105,7 +106,7 @@ export default function Sidebar() {
 
     try {
       await axios.post(
-        "http://localhost:8000/update-disability",
+        `${API_BASE}/update-disability`,
         {
           user_id: activeUser.user_id,
           condition: conditionKey,
@@ -138,7 +139,7 @@ export default function Sidebar() {
       if (!severity || severity === "none") continue;
 
       await axios.post(
-        "http://localhost:8000/update-disability",
+        `${API_BASE}/update-disability`,
         {
           user_id: activeUser.user_id,
           condition,
@@ -162,7 +163,7 @@ export default function Sidebar() {
     if (!activeUser?.user_id) return;
     if (window.confirm("Are you sure you want to delete all personal data?")) {
       try {
-        await axios.delete(`http://localhost:8000/delete-user-data/${activeUser.user_id}`);
+        await axios.delete(`${API_BASE}/delete-user-data/${activeUser.user_id}`);
         alert("All personal data has been deleted.");
       } catch (e) {
         alert("Failed to delete data.");

@@ -11,6 +11,7 @@ import {
 import { AppContext } from "../App";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
+import { API_BASE } from "../apiConfig";
 import SettingsIcon from "@mui/icons-material/Settings";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import SecurityIcon from "@mui/icons-material/Security";
@@ -29,9 +30,9 @@ export default function Settings() {
     
     setLoading(true);
     Promise.all([
-      axios.get(`http://localhost:8000/user-insights/${activeUser.user_id}`),
-      axios.get(`http://localhost:8000/concept-mastery/${activeUser.user_id}`),
-      axios.get(`http://localhost:8000/impatience-history/${activeUser.user_id}`)
+      axios.get(`${API_BASE}/user-insights/${activeUser.user_id}`),
+      axios.get(`${API_BASE}/concept-mastery/${activeUser.user_id}`),
+      axios.get(`${API_BASE}/impatience-history/${activeUser.user_id}`)
     ])
       .then(([insightsRes, masteryRes, impatienceRes]) => {
         setInsights(insightsRes.data);
@@ -139,7 +140,7 @@ export default function Settings() {
                     if (!activeUser?.user_id) return;
                     if (window.confirm("Are you sure you want to delete all personal data?")) {
                       try {
-                        await axios.delete(`http://localhost:8000/delete-user-data/${activeUser.user_id}`);
+                        await axios.delete(`${API_BASE}/delete-user-data/${activeUser.user_id}`);
                         alert("All personal data has been deleted.");
                       } catch (e) {
                         alert("Failed to delete data.");

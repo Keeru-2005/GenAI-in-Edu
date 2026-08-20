@@ -20,6 +20,7 @@ import axios from "axios";
 import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 import { AppContext } from "../App";
+import { API_BASE } from "../apiConfig";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import ReplayIcon from "@mui/icons-material/Replay";
@@ -187,7 +188,7 @@ const startSpeech = async (text) => {
     const formData = new FormData();
     formData.append("text", cleanTextForSpeech(text));
     
-    const res = await axios.post("http://localhost:8000/generate-audio", formData, {
+    const res = await axios.post(`${API_BASE}/generate-audio`, formData, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" }
     });
     
@@ -196,8 +197,9 @@ const startSpeech = async (text) => {
         howlRef.current.unload();
       }
       
+      const audioSrc = res.data.audio_url.startsWith("http") ? res.data.audio_url : `${API_BASE}${res.data.audio_url}`;
       howlRef.current = new Howl({
-        src: [res.data.audio_url],
+        src: [audioSrc],
         html5: true,
         onend: () => {
           setIsSpeaking(false);
@@ -315,7 +317,7 @@ const chatContainerRef = useRef(null);
   ]);
 
   const res = await axios.post(
-    "http://localhost:8000/evaluate-understanding",
+    `${API_BASE}/evaluate-understanding`,
     {
       user_id: activeUser.user_id,
       concept: currentConcept,
@@ -416,7 +418,7 @@ const handleMicClick = () => {
 
 
   try {
-    const response = await axios.post("http://localhost:8000/upload-pdf", formData, {
+    const response = await axios.post(`${API_BASE}/upload-pdf`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     if (response.data.text) {
@@ -445,7 +447,7 @@ const handleMicClick = () => {
     ]);
 
     try {
-      const response = await axios.post("http://localhost:8000/process-message", {
+      const response = await axios.post(`${API_BASE}/process-message`, {
         message: inputMessage,
         pdfContent: pdfContent || "",
         user_id: activeUser.user_id,
@@ -481,12 +483,13 @@ const handleMicClick = () => {
       }
 
       if (response.data.type === "video") {
+    const vidSrc = response.data.video_url?.startsWith("http") ? response.data.video_url : `${API_BASE}${response.data.video_url}`;
     setChatHistory((prev) => [
       ...prev,
       {
         sender: "agent",
         type: "video",
-        video_url: response.data.video_url,
+        video_url: vidSrc,
         script: response.data.script,
       },
     ]);
@@ -506,14 +509,15 @@ const handleMicClick = () => {
 
     const pollInterval = setInterval(async () => {
       try {
-        const statusRes = await axios.get(`http://localhost:8000/video-status/${jobId}`);
+        const statusRes = await axios.get(`${API_BASE}/video-status/${jobId}`);
         if (statusRes.data.status === "completed") {
           clearInterval(pollInterval);
+          const finishedVidSrc = statusRes.data.video_url?.startsWith("http") ? statusRes.data.video_url : `${API_BASE}${statusRes.data.video_url}`;
           setChatHistory((prev) => prev.map(msg => 
             msg.id === tempId ? {
               sender: "agent",
               type: "video",
-              video_url: statusRes.data.video_url,
+              video_url: finishedVidSrc,
               script: statusRes.data.script
             } : msg
           ));
@@ -543,7 +547,7 @@ const handleMicClick = () => {
       // 🎯 QUIZ GENERATION (ADD THIS RIGHT AFTER AGENT RESPONSE)
     try {
       const quizRes = await axios.post(
-        "http://localhost:8000/generate-quiz",
+        `${API_BASE}/generate-quiz`,
         {
           user_id: activeUser.user_id,
           topic: inputMessage,
@@ -598,7 +602,7 @@ const startFocus = async () => {
     return;
   }
 
-  await axios.post("http://localhost:8000/start-focus-session", {
+  await axios.post(`${API_BASE}/start-focus-session`, {
     user_id: activeUser.user_id
   }, {
     headers: { "Content-Type": "application/x-www-form-urlencoded" }
@@ -625,7 +629,7 @@ const startFocus = async () => {
         ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
         const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.5); // lower quality to reduce payload size
         
-        axios.post("http://localhost:8000/process-frame", {
+        axios.post(`${API_BASE}/process-frame`, {
             user_id: activeUser.user_id,
             image_base64: dataUrl
         });
@@ -650,7 +654,7 @@ const stopFocus = async () => {
     videoRef.current.style.display = "none";
   }
 
-  const res = await axios.post("http://localhost:8000/stop-focus-session", {
+  const res = await axios.post(`${API_BASE}/stop-focus-session`, {
     user_id: activeUser.user_id
   }, {
     headers: { "Content-Type": "application/x-www-form-urlencoded" }
@@ -679,7 +683,7 @@ useEffect(() => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/process-message",
+        `${API_BASE}/process-message`,
         {
           message: voiceText,
           pdfContent: pdfContent || "",
@@ -726,7 +730,7 @@ useEffect(() => {
   const handleUnderstood = async (content) => {
   try {
     const quizRes = await axios.post(
-      "http://localhost:8000/generate-quiz",
+      `${API_BASE}/generate-quiz`,
       {
         user_id: activeUser.user_id,
         topic: inputMessage,
@@ -745,7 +749,7 @@ useEffect(() => {
 const handleNotUnderstood = async (content) => {
   try {
     const res = await axios.post(
-      "http://localhost:8000/process-message",
+      `${API_BASE}/process-message`,
       {
         message: "Explain the concepts in the following content in a much simpler way. If there are multiple concepts, break down each one separately. Use simple language and examples.\n\n" + content,
         pdfContent: content,
@@ -1090,7 +1094,7 @@ const VideoMessage = ({ video_url, script }) => {
       <video
         controls
         onPlay={() =>
-          axios.post("http://localhost:8000/log-modality-event", {
+          axios.post(`${API_BASE}/log-modality-event`, {
             user_id: activeUser.user_id,
             modality: "video",
             event: "play",

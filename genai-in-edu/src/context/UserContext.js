@@ -2,13 +2,13 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
 
+import { API_BASE } from "../apiConfig";
+
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [activeUser, setActiveUser] = useState({ user_id: "loading", name: "Loading..." });
   const [users, setUsers] = useState([]);
-
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     axios.get(`${API_BASE}/users`)
@@ -27,7 +27,7 @@ export const UserProvider = ({ children }) => {
       .catch(err => {
         console.error("Failed to fetch users from DB", err);
       });
-  }, [API_BASE]);
+  }, []);
 
   const createNewProfile = async (username) => {
     try {

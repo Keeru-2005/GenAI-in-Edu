@@ -1,9 +1,12 @@
 import os
 from groq import Groq
+from dotenv import load_dotenv
+load_dotenv()
 
 # Initialize Groq client
 GROQ_API = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API) if GROQ_API else None
+GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/compound-mini")
 
 # In-memory session-level context
 conversation_context = {
@@ -26,7 +29,7 @@ def update_context(user_message, bot_response):
                     },
                     {"role": "user", "content": combined_text}
                 ],
-                model="llama-3.1-8b-instant",
+                model=GROQ_MODEL,
                 max_tokens=120
             )
             content = res.choices[0].message.content.strip()

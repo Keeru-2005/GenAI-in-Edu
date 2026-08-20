@@ -1,10 +1,13 @@
 import fitz  # PyMuPDF
 from groq import Groq
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Initialize Groq client
 GROQ_API = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=GROQ_API)
+client = Groq(api_key=GROQ_API) if GROQ_API else None
+GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/compound-mini")
 
 # --- PDF Text Extraction ---
 def extract_text_from_pdf(file_bytes):
@@ -15,15 +18,18 @@ def extract_text_from_pdf(file_bytes):
         text += page.get_text()
     doc.close()
     return text
+
 # --- Summarization ---
 def summarize_text(text):
+    if not client:
+        return "Groq client not initialized."
     try:
         summary_response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": f"Summarize the following text: {text}"}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
         return summary_response.choices[0].message.content
     except Exception as e:
@@ -31,13 +37,15 @@ def summarize_text(text):
 
 # --- Question Answering ---
 def ask_question(context, question):
+    if not client:
+        return "Groq client not initialized."
     try:
         answer_response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": f"Context: {context}\n\nQuestion: {question}"}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
         return answer_response.choices[0].message.content
     except Exception as e:
@@ -45,6 +53,8 @@ def ask_question(context, question):
 
 
 def generate_quiz(context, topic):
+    if not client:
+        return {"error": "Groq client not initialized."}
     try:
         prompt = f"""
         Generate 3 multiple choice questions based on this topic.
@@ -70,7 +80,7 @@ def generate_quiz(context, topic):
                 {"role": "system", "content": "You are a quiz generator."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
 
         import json
@@ -90,7 +100,10 @@ def generate_quiz(context, topic):
 
     except Exception as e:
         return {"error": str(e)}
+
 def explain_mistakes(wrong_concepts):
+    if not client:
+        return "Groq client not initialized."
     try:
         prompt = f"""
             A student answered the following questions incorrectly.
@@ -122,14 +135,17 @@ def explain_mistakes(wrong_concepts):
                 {"role": "system", "content": "You are a helpful teacher."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
 
         return response.choices[0].message.content
 
     except Exception as e:
         return "Could not generate explanation."
+
 def extract_concept(text):
+    if not client:
+        return "general"
     try:
         prompt = f"""
         Extract the main learning concept from this text.
@@ -146,7 +162,7 @@ def extract_concept(text):
                 {"role": "system", "content": "You extract key concepts."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
         
         return response.choices[0].message.content.strip()
@@ -155,6 +171,8 @@ def extract_concept(text):
         return "general"
 
 def classify_intent(message):
+    if not client:
+        return "general"
     try:
         prompt = f"""
         Classify the intent of the following user message into ONE of these categories:
@@ -169,7 +187,7 @@ def classify_intent(message):
                 {"role": "system", "content": "You classify user intents."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
         )
         intent = response.choices[0].message.content.strip().lower()
         valid_intents = ["summarize", "explain", "compare", "analyze", "general"]

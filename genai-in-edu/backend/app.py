@@ -46,6 +46,14 @@ app.add_middleware(
 os.makedirs("generated_videos", exist_ok=True)
 app.mount("/videos", StaticFiles(directory="generated_videos"), name="videos")
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "NeuroSync backend is running!"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
 dimension = 384
 _embedder = None
 

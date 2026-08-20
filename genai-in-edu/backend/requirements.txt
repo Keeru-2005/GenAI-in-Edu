@@ -20,3 +20,4 @@ accelerate
 neo4j
 pillow 
 pyttsx3
+cv2

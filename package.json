@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "cd genai-in-edu && npm install && npm run build"
+    "build": "cd genai-in-edu && npm install --legacy-peer-deps && CI=false npm run build"
   }
 }

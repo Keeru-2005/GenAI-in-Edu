@@ -1,0 +1,112 @@
+% File: methodology.tex
+% Target Journal: International Journal of Artificial Intelligence in Education (IJAIED)
+% Style: Elsevier template format (elsarticle)
+
+\section{Methodology and System Design}
+\label{sec:methodology}
+
+This section details the system architecture, mathematical modeling, algorithmic engines, and design criteria of the proposed state-sensing Intelligent Tutoring System.
+
+\subsection{System Architecture}
+\label{subsec:system_architecture}
+
+The platform is designed around a closed-loop client-server model that connects client-side interface sensors with server-side processing modules. The architecture consists of four distinct layers:
+\begin{enumerate}
+    \item \textbf{Sensing and Telemetry Layer (Client):} Runs in the user's web browser. It captures mouse and scroll metrics to monitor client activity and streams webcam frames at $1\text{ Hz}$ to capture facial features.
+    \item \textbf{Interface Layer (FastAPI Server):} An API gateway that handles CORS middleware, manages async video synthesis jobs, processes webcam frames in-memory, and provides REST endpoints for user authentication, preference logging, and conversational messages.
+    \item \textbf{Reasoning and Retrieval Layer (RAG \& LLM):} Combines local embeddings and cloud-based reasoning. Textbooks are parsed using PyMuPDF, chunked into 300-word blocks, and indexed in a FAISS vector space using the $384$-dimensional \texttt{all-MiniLM-L6-v2} SentenceTransformer model. Cognitive reasoning is offloaded to the Groq API utilizing the \texttt{llama-3.1-8b-instant} LLM.
+    \item \textbf{Persistence Layer (Knowledge Graph):} A Neo4j graph database that records interactions, focus sessions, modality engagement, reported emotional states, and concept mastery.
+\end{enumerate}
+
+\subsection{AI Models and Algorithms}
+\label{subsec:models_algorithms}
+
+The system processes input queries and learner states through two primary computational engines.
+
+\subsubsection{Adaptive Content Generation Engine}
+\label{subsubsec:content_generation_engine}
+
+The content generation engine uses a structured prompt compiler to dynamically format retrieved RAG context. The RAG pipeline retrieves relevant document chunks by minimizing the L2 distance between the embedded query vector $\mathbf{e}_q$ and chunk vectors $\mathbf{e}_c$:
+\begin{equation}
+    c_i = \arg\min_{c \in \mathcal{C}} \|\mathbf{e}_q - \mathbf{e}_c\|_2^2
+\end{equation}
+The retrieved chunks are appended to a context prompt. The system classifies the user's query intent into one of five categories: \textit{summarize}, \textit{explain}, \textit{compare}, \textit{analyze}, or \textit{general}. Based on this intent and the resolved modality $M_P \in \{\text{text}, \text{audio}, \text{video}, \text{diagram}\}$, the engine structures its prompt instructions:
+\begin{itemize}
+    \item \textbf{Text Explanations:} Generates content calibrated to the user-selected Feedback Granularity slider ($0$--$10$) and anxiety level. If anxiety $A \ge 7$, explanations are limited to at most two concepts using simple sentences and comforting reassurance.
+    \item \textbf{Diagram Compilation:} The model generates Mermaid.js flowcharts using a strict schema (beginning with \texttt{graph TD;}, terminating lines with \texttt{;}, and using simple node labels) to ensure it compiles correctly on the client interface.
+    \item \textbf{Audio Narration:} The model writes conversational explanations, which the server processes into an MP3 file using Google Text-to-Speech (\texttt{gTTS}), bypassing unreliable browser-native synthesis libraries.
+    \item \textbf{Video Synthesis:} The LLM generates a structured script containing slide titles, Pexels search keywords, slide bullet points, and voice narration. A background task fetches slide background images from the Pexels API, overlays text using Pillow, generates narration audio via \texttt{gTTS}, and stitches assets into an MP4 file using \texttt{MoviePy} and FFmpeg.
+\end{itemize}
+
+\subsubsection{Learner Modeling and Personalization Engine}
+\label{subsubsec:learner_modeling_engine}
+
+This engine maintains the student's cognitive state and updates the Neo4j Knowledge Graph.
+
+\begin{enumerate}
+    \item \textbf{Real-Time Eye Tracking \& Focus Sessions (Client-Capture, Backend-Analyze):} The React frontend accesses the webcam and uses a hidden \texttt{<canvas>} element to capture and compress a frame every second ($1\text{ Hz}$). This frame is streamed as a base64 string to the FastAPI backend.
+    
+    The Python backend decodes the frame and utilizes \texttt{dlib} with the pre-trained \texttt{shape\_predictor\_68\_face\_landmarks.dat} model to map facial landmarks. Let $I_{\text{eye}}(x,y)$ be the grayscale image of an eye region. The region is binarized using a threshold of $70$:
+    \begin{equation}
+        B_{\text{eye}}(x,y) = \begin{cases} 255 & \text{if } I_{\text{eye}}(x,y) < 70 \\ 0 & \text{otherwise} \end{cases}
+    \end{equation}
+    The binarized eye crop is split horizontally into left ($L$) and right ($R$) halves. The gaze ratio $G$ is defined as the ratio of white pixels in each half:
+    \begin{equation}
+        G = \frac{\sum_{(x,y) \in L} \mathbb{1}(B_{\text{eye}}(x,y) == 255)}{\sum_{(x,y) \in R} \mathbb{1}(B_{\text{eye}}(x,y) == 255)}
+    \end{equation}
+    A frame is classified as \textit{attended} if $0.5 \le G \le 2.0$. The session focus score is calculated as the percentage of attended frames:
+    \begin{equation}
+        S_{\text{focus}} = \frac{N_{\text{attended}}}{N_{\text{total}}} \times 100
+    \end{equation}
+    The resulting attention score is logged directly to Neo4j. This architecture ensures heavy computer vision processing stays on the server while scaling smoothly across concurrent web users.
+
+    \item \textbf{Modality Resolution Hierarchy:} When generating responses, the system resolves competing inputs (user selected modality, inferred behavior, and medical profile) through a strict Priority Hierarchy:
+    \begin{itemize}
+        \item \textbf{Priority 1: Disability Accommodations (Top Override):} Takes absolute precedence over all other preferences. If comorbid conditions exist (e.g., both ADHD and Dyslexia), the dominant condition is isolated using a two-step formula:
+        \begin{equation}
+            \text{DominantCondition} = \arg\max_{c \in D} \Big( \text{SeverityWeight}(c) + \epsilon \cdot \text{TieBreakerRank}(c) \Big)
+        \end{equation}
+        where $\text{SeverityWeight}(c) \in \{\text{Severe}=3, \text{Moderate}=2, \text{Mild}=1\}$, and equal severities are resolved using a hardcoded pedagogical tie-breaker matrix: $\text{Dyslexia} > \text{Autism} > \text{ADHD}$. Once isolated, it maps to a scientifically backed modality (e.g., Severe ADHD $\rightarrow$ Diagram, Mild Dyslexia $\rightarrow$ Audio).
+        
+        \item \textbf{Priority 2: Behavioral Inference (Programmatic RL Loop):} If no disabilities are declared, the system checks for an \texttt{observed\_modality} determined by engagement frequencies in Neo4j. Modality interaction count ($N_{\text{usage}}$) acts as the reward signal. The policy selects the modality with the highest affinity $\theta_u(M)$:
+        \begin{equation}
+            \theta_u(M) = N_{\text{usage}}(M)
+        \end{equation}
+        If the system infers via \texttt{infer\_preferred\_modality} and \texttt{get\_modality\_affinity} that the user spends significantly more time engaging with a specific modality (e.g., watching videos), it assumes implicit behavior is a better indicator of learning style than manual choice, overriding the default.
+        
+        \item \textbf{Priority 3: User Selected Modality (Fallback):} Falls back to the explicit dropdown choice (\texttt{user\_modality}) if no medical constraints or historical behavioral data exist.
+    \end{itemize}
+
+    \item \textbf{Rethinking Reinforcement Learning (Programmatic Feedback Loops):} While traditional machine learning RL models (e.g., PPO or Q-learning) are computationally expensive and risk optimization alignment failures (such as optimizing for view time by suggesting highly distracting videos even if they hurt learning), our system implements a **Programmatic Behavioral Inference Loop** using Neo4j analytics. The environment is the chat interface, the action is the modality selection, the reward signal is interaction duration logged as \texttt{ModalityEvents}, and the policy update queries Neo4j to update future defaults. This achieves the autonomous personalization benefits of RL while maintaining 100\% control, transparency, and safety for neurodivergent learners.
+
+    \item \textbf{Pedagogical Logic and Disability Accommodations:}
+    \begin{itemize}
+        \item \textbf{ADHD Accommodations:} Limits concepts, uses bulleted lists, and defaults to high-stimulation modalities (Diagrams or Videos) for severe cases to reduce extraneous cognitive load and deliver dopamine-rewarding chunks.
+        \item \textbf{Autism (ASD) Accommodations:} Enforces explicit step-by-step logic and structured flowcharts (Diagrams), avoiding metaphorical language to bypass abstract linguistic decoding difficulties.
+        \item \textbf{Dyslexia Accommodations:} Uses short sentences, simple vocabulary, and prioritizes Audio (TTS) and Diagrams to offload orthographic decoding to auditory/visual channels.
+    \end{itemize}
+    
+    \item \textbf{Learner Autonomy (Feedback Granularity \& Anxiety):} 
+    Rather than forcing a fixed explanation depth, the frontend provides a manual \textit{Feedback Granularity} slider ($0$--$10$). This empowers students with explicit control over their cognitive load, allowing them to choose surface-level bite-sized summaries (low granularity) or deep technical breakdowns (high granularity) depending on their current mental bandwidth.
+\end{enumerate}
+
+\subsection{User Interface and Accessibility Design}
+\label{subsec:ui_accessibility}
+
+The frontend is built using React and Material-UI, following Web Content Accessibility Guidelines (WCAG 2.1). 
+Key accessibility features include:
+\begin{itemize}
+    \item \textbf{Visual Styling:} High-contrast dark and light modes using system preference fallbacks, featuring a fluid glassmorphism layout with legible typography (Inter and Outfit) for dyslexic readers.
+    \item \textbf{Speech Evaluation Interface:} An active speech loop using the browser's \texttt{webkitSpeechRecognition} API. It allows students to explain concepts in their own words. The system transcribes the speech and evaluates understanding against the RAG reference text.
+    \item \textbf{Comprehension Scaffolding:} Action buttons (\textit{Understood} and \textit{Not Understood}) let students self-regulate. Clicking \textit{Understood} generates an adaptive MCQ quiz, while \textit{Not Understood} automatically simplifies the concept.
+\end{itemize}
+
+\subsection{Data Privacy and Security Considerations}
+\label{subsec:privacy_security}
+
+Given the use of webcam data and personal cognitive profiles, the system implements a strict privacy-preserving model:
+\begin{itemize}
+    \item \textbf{Local Eye-Tracking Processing:} Gaze ratio calculation is processed in-memory at the FastAPI application layer. Individual camera frames are analyzed on-the-fly and immediately discarded. No video files or raw frames are saved or transmitted outside the server environment.
+    \item \textbf{Granular User Consents:} The system requires explicit user consent before activating the webcam or using declared cognitive profiles (ADHD, ASD, Dyslexia) for personalization.
+    \item \textbf{Data Deletion Policies:} In line with GDPR requirements, users can delete their profiles. The interface provides a "Delete My Data" feature that performs a cascading detach-delete on the Neo4j database, removing all related sessions, masteries, focus scores, and interaction logs.
+\end{itemize}

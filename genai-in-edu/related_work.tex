@@ -1,0 +1,46 @@
+% File: related_work.tex
+% Target Journal: International Journal of Artificial Intelligence in Education (IJAIED)
+% Style: Elsevier template format (elsarticle)
+
+\section{Related Work}
+\label{sec:related_work}
+
+This section synthesizes the literature across Artificial Intelligence in Education (AIED), assistive technologies for neurodivergent learners, and generative educational architectures, identifying the key technical and pedagogical limitations of existing systems that motivate the proposed state-sensing framework.
+
+\subsection{Artificial Intelligence in Education (AIED)}
+\label{subsec:related_aied}
+
+Personalized instruction in AIED has evolved from static, constraint-based systems to highly dynamic, generative paradigms. Early Intelligent Tutoring Systems (ITSs) relied on cognitive modeling and expert-defined rule sets to trace knowledge state-by-state. For example, cognitive tutors such as Carnegie Learning \cite{jier2025ai} track student accuracy, response times, and error patterns to adjust problem difficulty in domains like mathematics. Similarly, adaptive learning platforms (e.g., MetaTutor and Betty's Brain) \cite{laak2025ai} utilize content graphs and pedagogical feedback to trace knowledge acquisition, though traditional ITS frameworks often suffer from cold-start problems, manual rule-authoring overhead, and rigid domain boundaries \cite{vorobyeva2025personalized, etr2025artificial}. In parallel, personalized learning platforms in Massive Open Online Courses (MOOCs) have incorporated adaptive quizzes, Script Concordance Evaluations (SCE) for problem-solving assessment, and personality-driven career guidance to reduce student dropout rates \cite{vijayasekaran2024personalized}. To address the engagement bottleneck of static courseware, early multimodal approaches explored speech-driven face-synthesis (e.g., Wav2Lip) to automatically render instructor talking-head videos from slide transcripts \cite{dao2021aipowered}.
+
+The emergence of Large Language Models (LLMs) and Generative AI (GenAI) has fundamentally expanded the capabilities of AIED, as documented in broad PRISMA systematic literature reviews \cite{admane2024artificial, mittal2024comprehensive}. Modern platforms integrate APIs (e.g., OpenAI GPT-4, Google Gemini, Anthropic Claude) into Learning Management Systems (LMS) to generate customized lesson materials, adaptive multi-format assessments, and persona-driven content (such as professor or pop-culture character voices) \cite{binhammad2024investigating, pesovski2024generative, sarkar2025generative}. To reduce educator cognitive load when creating adaptive content, prompt-engineering frameworks—such as the Tailored Prompt Generator (TPG)—and dedicated educator authoring workshops have been introduced to standardize instructional scaffolding \cite{moraleschan2024aidriven, krouska2024chatgpt}. 
+
+Recent research has also explored advanced architectural paradigms to enhance tutoring depth:
+\begin{itemize}
+    \item \textbf{Cognitive Style and Multi-Agent Scaffolding:} Systems now map content delivery to individual cognitive processing styles (visual, auditory, reading/writing, kinesthetic) \cite{singh2024investigating} and deploy Multi-Agent Systems (MAS) paired with Chain-of-Thought (CoT) prompting and external mathematical validation engines (e.g., Wolfram) to structure step-by-step problem-solving \cite{almetnawy2025adaptive}.
+    \item \textbf{Gamification and Media Conversion:} Adaptive gamification engines combine generative text and media creation with user motivation modeling to increase session persistence \cite{abbes2024generative}. In video-based learning, NLP pipelines combine Whisper ASR transcript extraction with transformer summarizers and distractor generation (via Sense2Vec) to automatically convert static video lectures into interactive formative quizzes \cite{hamzaoui2024toward}.
+    \item \textbf{On-Demand RAG Architecture:} Cloud-hosted architectures utilize Retrieval-Augmented Generation (RAG) and cognitive schema maps to deliver 24/7 contextual Q\&A tutoring outside scheduled classroom hours \cite{leon2024leveraging, sjcs2024generative}.
+\end{itemize}
+
+\subsection{Assistive Technologies for Neurodiversity}
+\label{subsec:related_assistive}
+
+Assistive technology research focuses on adapting digital learning environments to accommodate diverse cognitive, sensory, and orthographic processing profiles, particularly for learners with Attention-Deficit/Hyperactivity Disorder (ADHD), Autism Spectrum Disorder (ASD), and dyslexia \cite{rocha2025aigen}. Traditional e-learning platforms impose severe cognitive load on neurodivergent students due to visual clutter, rigid text layouts, and a lack of real-time sensory accommodations.
+
+To alleviate reading comprehension and orthographic decoding bottlenecks, specialized text-transformation tools have been developed. For instance, AI-powered speed-reading tools utilize T5 transformer models for abstractive summarization, NLTK sentence tokenization, custom line/character spacing controls, and half-word bolding algorithms (based on Bionic Reading principles) to guide visual focus for ADHD and dyslexic readers \cite{yusri2024speed}. 
+
+For comprehensive multi-sensory support, frameworks such as ALGA-Ed \cite{farhah2025enhancing} integrate multi-model generative pipelines (combining GPT for text, DALL-E for visual imagery, and Whisper for audio narration) with user profiling modules that capture sensory sensitivities via real-time feedback and assistive devices (e.g., eye trackers, Braille displays). ALGA-Ed also employs reinforcement learning trained on large-scale interaction datasets (e.g., EdNet, ASSISTments) to adapt content delivery dynamically. Similarly, unified GenAI platforms enforce Web Content Accessibility Guidelines (WCAG 2.1) by offering sensory-friendly toggles (such as dark mode, customizable narration speeds, and structural text simplification) to empower neurodivergent learners \cite{rocha2025aigen}.
+
+In tandem with technical systems, pedagogical evaluation benchmarks have emerged to assess AI tutor quality. The LearnLM-Tutor framework \cite{jurenka2025towards} fine-tunes Gemini models using participatory design loops involving teachers and learning scientists, evaluating tutors against seven custom pedagogical metrics (e.g., addressing misconceptions, fostering reflection, and encouraging productive struggle).
+
+\subsection{Limitations of Existing Solutions}
+\label{subsec:limitations_existing}
+
+Despite these technical advancements across the 23 surveyed studies, current AI-based educational platforms exhibit three primary limitations:
+
+\begin{enumerate}
+    \item \textbf{Affective and Sensory Blindness:} While systems model interaction history \cite{jier2025ai} or detect distraction via response times \cite{almetnawy2025adaptive}, they lack closed-loop integration of real-time gaze telemetry with micro-interaction tracking (such as detecting impatience via frantic scrolling or repetitive clicking). Existing tutors operate in an affective vacuum, unable to sense a learner's immediate state of physical distraction or emotional frustration.
+    \item \textbf{Overemphasis on Direct Answers vs. Self-Regulated Learning:} Most commercial GenAI interfaces function as passive "answer engines," providing quick solutions that bypass active cognitive construction \cite{jurenka2025towards}. As highlighted by Laak \& Aru \cite{laak2025ai}, personalized learning tools often over-optimize for test scores and immediate content delivery while neglecting self-regulated learning (SRL), metacognition, and active recall verification (e.g., speech-based verbal explanation checks).
+    \item \textbf{Modality Rigidity and Ephemeral Learner Models:} Current personalized platforms rely primarily on text simplification or isolated quiz generation \cite{krouska2024chatgpt, pesovski2024generative}. They cannot dynamically synthesize multi-sensory content streams on the fly—such as live vector Mermaid.js flowcharts, custom TTS audio, and complete MoviePy-compiled video lessons. Furthermore, user models in existing platforms are ephemeral, storing history as flat text logs or isolated relational tables rather than maintaining a persistent knowledge graph (such as Neo4j) that tracks evolving modality interaction frequencies to drive safe, deterministic personalization \cite{farhah2025enhancing, sjcs2024generative}.
+\end{enumerate}
+
+The state-sensing Intelligent Tutoring System proposed in this work directly addresses these limitations by pairing lightweight edge gaze-tracking and behavioral telemetry with a persistent Neo4j learner model, driving real-time, closed-loop multimodal synthesis.

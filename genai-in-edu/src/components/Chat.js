@@ -533,41 +533,16 @@ const handleMicClick = () => {
         console.error("Polling error", e);
       }
     }, 3000);
-  } else if (response.data.response) {
-    setChatHistory((prev) => [
-      ...prev,
-      {
-        sender: "agent",
-        type: "text",
-        message: response.data.response,
-      },
-    ]);
-      // 🎯 QUIZ GENERATION (ADD THIS RIGHT AFTER AGENT RESPONSE)
-    try {
-      const quizRes = await axios.post(
-        `${API_BASE}/generate-quiz`,
+    } else if (response.data.response) {
+      setChatHistory((prev) => [
+        ...prev,
         {
-          user_id: activeUser.user_id,
-          topic: inputMessage,
-          context: response.data.response || "",
-        }
-      );
-
-      console.log("🧠 Quiz generated:", quizRes.data.quiz);
-
-      // if (Array.isArray(quizRes.data.quiz)) {
-      //   setQuizData(quizRes.data.quiz);
-      //   setShowQuiz(true);
-      // } else {
-      //   console.error("Invalid quiz format:", quizRes.data.quiz);
-      // }
-      // console.log("QUIZ DATA:", quizRes.data);
-      // setShowQuiz(true);
-
-    } catch (err) {
-      console.error("Quiz generation failed:", err);
+          sender: "agent",
+          type: "text",
+          message: response.data.response,
+        },
+      ]);
     }
-  }
 
       else {
         setChatHistory((prev) => [

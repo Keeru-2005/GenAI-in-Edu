@@ -414,7 +414,7 @@ const handleMicClick = () => {
   setIsAgentTyping(true);
   const formData = new FormData();
   formData.append("file", selectedFile);
-  formData.append("user_id", activeUser.user_id);
+  formData.append("user_id", activeUser?.user_id || "user_fallback");
 
 
   try {
@@ -450,11 +450,9 @@ const handleMicClick = () => {
       const response = await axios.post(`${API_BASE}/process-message`, {
         message: inputMessage,
         pdfContent: pdfContent || "",
-        user_id: activeUser.user_id,
+        user_id: activeUser?.user_id || "user_fallback",
         modality: isVoiceMode ? "audio" : preferences.modalityPreference,
         feedbackGranularity: preferences.feedbackGranularity,
-      }, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
       if (response.data.response) {
       setLastAgentMessage(response.data.response);
@@ -687,12 +685,9 @@ useEffect(() => {
         {
           message: voiceText,
           pdfContent: pdfContent || "",
-          user_id: activeUser.user_id,
+          user_id: activeUser?.user_id || "user_fallback",
           modality: "audio", // voice conversations default to audio
           feedbackGranularity: preferences.feedbackGranularity,
-        },
-        {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
         }
       );
 
@@ -732,7 +727,7 @@ useEffect(() => {
     const quizRes = await axios.post(
       `${API_BASE}/generate-quiz`,
       {
-        user_id: activeUser.user_id,
+        user_id: activeUser?.user_id || "user_fallback",
         topic: inputMessage,
         context: content,
       }
@@ -753,11 +748,8 @@ const handleNotUnderstood = async (content) => {
       {
         message: "Explain the concepts in the following content in a much simpler way. If there are multiple concepts, break down each one separately. Use simple language and examples.\n\n" + content,
         pdfContent: content,
-        user_id: activeUser.user_id,
+        user_id: activeUser?.user_id || "user_fallback",
         modality: preferences.modalityPreference,
-      },
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
     );
 

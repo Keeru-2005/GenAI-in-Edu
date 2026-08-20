@@ -8,11 +8,12 @@ from focus_tracker import evaluate_frame
 from dotenv import load_dotenv
 load_dotenv()
 from response_handler import extract_text_from_pdf, summarize_text, ask_question, classify_intent
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import faiss
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import uuid
 import time
@@ -54,18 +55,22 @@ def root():
 def health():
     return {"status": "healthy"}
 
-dimension = 384
-_embedder = None
-
-def get_embedder():
-    global _embedder
-    if _embedder is None:
-        import torch
-        torch.set_num_threads(1)
-        from sentence_transformers import SentenceTransformer
-        logger.info("Lazy loading SentenceTransformer model...")
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
-    return _embedder
+def find_relevant_chunks(query: str, chunks: list, top_k: int = 5):
+    if not chunks:
+        return ""
+    if len(chunks) <= top_k:
+        return " ".join(chunks)
+    try:
+        vectorizer = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = vectorizer.fit_transform(chunks)
+        query_vec = vectorizer.transform([query])
+        similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
+        top_indices = similarities.argsort()[::-1][:top_k]
+        relevant = [chunks[i] for i in top_indices if similarities[i] > 0]
+        return " ".join(relevant) if relevant else " ".join(chunks[:top_k])
+    except Exception as e:
+        logger.error(f"Error in chunk retrieval: {e}")
+        return " ".join(chunks[:top_k])
 
 # Session state
 user_sessions = {}
@@ -112,8 +117,8 @@ def infer_preferred_modality(user_id: str):
     return affinity[0]["modality"]
 
 @app.post("/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...), user_id: str = Form(...)):
-    logger.info("Received PDF upload request")
+async def upload_pdf(file: UploadFile = File(...), user_id: str = Form("user_fallback")):
+    logger.info(f"Received PDF upload request for user {user_id}")
     try:
         file_bytes = await file.read()
         pdf_text = extract_text_from_pdf(file_bytes)
@@ -125,16 +130,9 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Form(...)):
         words = pdf_text.split()
         pdf_chunks = [' '.join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
         
-        index = faiss.IndexFlatL2(dimension)
-        if pdf_chunks:
-            embedder = get_embedder()
-            embeddings = embedder.encode(pdf_chunks)
-            index.add(np.array(embeddings))
-            
         user_sessions[user_id] = {
             "pdf_text": pdf_text,
             "pdf_chunks": pdf_chunks,
-            "index": index
         }
 
         return {"text": pdf_text}
@@ -457,27 +455,38 @@ def generate_audio(text: str = Form(...)):
         return {"error": str(e)}
 
 @app.post("/process-message")
-async def process_message(background_tasks: BackgroundTasks,
-                          message: str = Form(...), 
-                          pdfContent: str = Form(...), 
-                          user_id: str = Form(...), 
-                          modality: str = Form("text"),
-                          feedbackGranularity: int = Form(5)):
+async def process_message(background_tasks: BackgroundTasks, request: Request):
+    content_type = request.headers.get("content-type", "")
+    try:
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            form_data = await request.form()
+            data = dict(form_data)
+    except Exception:
+        data = {}
+
+    message = data.get("message", "")
+    pdfContent = data.get("pdfContent", "")
+    user_id = data.get("user_id") or "user_fallback"
+    modality = data.get("modality", "text")
+    try:
+        feedbackGranularity = int(data.get("feedbackGranularity", 5) or 5)
+    except Exception:
+        feedbackGranularity = 5
+
     anxiety_level = 0
     try:
         intent = classify_intent(message)
         session = user_sessions.get(user_id, {})
-        index = session.get("index")
         pdf_chunks = session.get("pdf_chunks", [])
-        pdf_text = session.get("pdf_text", "")
+        pdf_text = session.get("pdf_text", "") or pdfContent
 
         pdf_context = "No PDF content."
-        if index and len(pdf_chunks) > 0:
-            embedder = get_embedder()
-            query_embedding = embedder.encode([message])
-            k_val = min(5, len(pdf_chunks))
-            _, indices = index.search(np.array(query_embedding), k=k_val)
-            pdf_context = " ".join([pdf_chunks[i] for i in indices[0] if 0 <= i < len(pdf_chunks)]) or pdf_text
+        if pdf_chunks and len(pdf_chunks) > 0:
+            pdf_context = find_relevant_chunks(message, pdf_chunks, top_k=5)
+        elif pdf_text:
+            pdf_context = pdf_text[:2000]
 
         context = get_context() + "\n\n" + pdf_context
 

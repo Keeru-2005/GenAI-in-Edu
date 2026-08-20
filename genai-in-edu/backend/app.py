@@ -10,28 +10,34 @@ load_dotenv()
 from response_handler import extract_text_from_pdf, summarize_text, ask_question, classify_intent
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from sentence_transformers import SentenceTransformer
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import faiss
 import numpy as np
-from context_manager import update_context, get_context
-from graph_logger import infer_observed_modality, log_interaction 
-from fastapi.staticfiles import StaticFiles
-from video_generator import create_video_from_script
 import uuid
-from graph_logger import get_user_disabilities, create_user_profile, get_all_users, log_impatience_event, get_impatience_history
-from pydantic import BaseModel
-from graph_logger import upsert_user_disability
-from graph_logger import log_emotional_state, get_modality_affinity, log_modality_event
-from response_handler import explain_mistakes, extract_concept
-from graph_logger import log_focus_score, get_focus_trend_data, get_concept_mastery, delete_user_data
 import time
 from gtts import gTTS
+import logging
+
+from context_manager import update_context, get_context
+from graph_logger import (
+    infer_observed_modality, log_interaction, get_user_disabilities,
+    create_user_profile, get_all_users, log_impatience_event,
+    get_impatience_history, upsert_user_disability, log_emotional_state,
+    get_modality_affinity, log_modality_event, log_focus_score,
+    get_focus_trend_data, get_concept_mastery, delete_user_data
+)
+from response_handler import explain_mistakes, extract_concept
+from video_generator import create_video_from_script
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # allowing all for dev
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,12 +46,18 @@ app.add_middleware(
 os.makedirs("generated_videos", exist_ok=True)
 app.mount("/videos", StaticFiles(directory="generated_videos"), name="videos")
 
-import logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
 dimension = 384
+_embedder = None
+
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        import torch
+        torch.set_num_threads(1)
+        from sentence_transformers import SentenceTransformer
+        logger.info("Lazy loading SentenceTransformer model...")
+        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embedder
 
 # Session state
 user_sessions = {}
@@ -107,6 +119,7 @@ async def upload_pdf(file: UploadFile = File(...), user_id: str = Form(...)):
         
         index = faiss.IndexFlatL2(dimension)
         if pdf_chunks:
+            embedder = get_embedder()
             embeddings = embedder.encode(pdf_chunks)
             index.add(np.array(embeddings))
             
@@ -452,6 +465,7 @@ async def process_message(background_tasks: BackgroundTasks,
 
         pdf_context = "No PDF content."
         if index and len(pdf_chunks) > 0:
+            embedder = get_embedder()
             query_embedding = embedder.encode([message])
             k_val = min(5, len(pdf_chunks))
             _, indices = index.search(np.array(query_embedding), k=k_val)

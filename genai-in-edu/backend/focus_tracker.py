@@ -1,9 +1,28 @@
 import cv2
 import dlib
 import numpy as np
+import os
 
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+_detector = None
+_predictor = None
+
+def get_detector():
+    global _detector
+    if _detector is None:
+        _detector = dlib.get_frontal_face_detector()
+    return _detector
+
+def get_predictor():
+    global _predictor
+    if _predictor is None:
+        model_path = "shape_predictor_68_face_landmarks.dat"
+        if not os.path.exists(model_path):
+            # check backend folder if running from root
+            alt_path = os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat")
+            if os.path.exists(alt_path):
+                model_path = alt_path
+        _predictor = dlib.shape_predictor(model_path)
+    return _predictor
 
 def get_gaze_ratio(eye_points, landmarks, gray):
     region = np.array([(landmarks.part(p).x, landmarks.part(p).y) for p in eye_points], np.int32)
@@ -48,6 +67,8 @@ def evaluate_frame(frame):
     Returns: True if attended, False if distracted, None if no face detected.
     """
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    detector = get_detector()
+    predictor = get_predictor()
     faces = detector(gray)
 
     for face in faces:
@@ -63,4 +84,4 @@ def evaluate_frame(frame):
         else:
             return False
             
-    return None  # No face detected
+    return None  # No face detected
